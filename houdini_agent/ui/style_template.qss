@@ -139,13 +139,15 @@ QComboBox#modelCombo QAbstractItemView {
 /* --- Toggle chips (Web / Think) — warm pill style --- */
 QCheckBox#chkWeb,
 QCheckBox#chkThink {
-    color: #8a7e6e;
+    background: rgba(45,40,32,150);
+    color: #9a8c78;
     font-size: {FS_MICRO}px;
     spacing: 0px;
-    padding: 2px 8px;
-    border-radius: 9px;
-    border: 1px solid rgba(180,160,130,10);
-    background: transparent;
+    padding: 0 9px;
+    min-height: 22px;
+    max-height: 22px;
+    border-radius: 7px;
+    border: 1px solid rgba(180,160,130,14);
 }
 QCheckBox#chkWeb::indicator,
 QCheckBox#chkThink::indicator {
@@ -157,14 +159,14 @@ QCheckBox#chkThink::indicator {
 /* — Unchecked hover — */
 QCheckBox#chkWeb:hover,
 QCheckBox#chkThink:hover {
-    color: #b0a08c;
-    background: rgba(180,160,130,8);
-    border-color: rgba(180,160,130,20);
+    color: #d4c5b0;
+    background: rgba(55,48,38,220);
+    border-color: rgba(212,165,116,40);
 }
 /* — Checked: Web = warm gold pill — */
 QCheckBox#chkWeb:checked {
     color: #d4a574;
-    background: rgba(212,165,116,12);
+    background: rgba(212,165,116,14);
     border-color: rgba(212,165,116,40);
 }
 QCheckBox#chkWeb:checked:hover {
@@ -174,12 +176,50 @@ QCheckBox#chkWeb:checked:hover {
 /* — Checked: Think = warm amber pill — */
 QCheckBox#chkThink:checked {
     color: #e0b87a;
-    background: rgba(224,184,122,10);
+    background: rgba(224,184,122,14);
     border-color: rgba(224,184,122,35);
 }
 QCheckBox#chkThink:checked:hover {
     background: rgba(224,184,122,20);
     border-color: rgba(224,184,122,55);
+}
+
+
+/* --- Reasoning effort chip (Custom GPT-5) --- */
+QComboBox#reasoningEffortCombo {
+    background: transparent;
+    color: transparent;
+    font-size: {FS_MICRO}px;
+    border: none;
+    padding: 0;
+    min-height: 22px;
+    max-height: 22px;
+}
+QComboBox#reasoningEffortCombo::drop-down {
+    border: none;
+    width: 0px;
+}
+QComboBox#reasoningEffortCombo::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
+    border: none;
+}
+QComboBox#reasoningEffortCombo QAbstractItemView {
+    background: rgba(35,30,24,248);
+    color: #d4c5b0;
+    border: 1px solid rgba(224,184,122,35);
+    selection-background-color: rgba(224,184,122,36);
+    selection-color: #f0e6d6;
+    font-size: {FS_XS}px;
+    outline: none;
+    border-radius: 7px;
+    padding: 4px;
+}
+QComboBox#reasoningEffortCombo QAbstractItemView::item {
+    min-height: 20px;
+    padding: 2px 8px;
+    border-radius: 5px;
 }
 
 /* --- Confirm checkbox (input area, warm compact) --- */
@@ -302,17 +342,18 @@ QPushButton#btnFontScale:hover {
 
 /* --- Overflow menu button (header ⋯) --- */
 QPushButton#btnOverflow {
-    background: transparent;
-    color: #8a7e6e;
-    border: none;
-    border-radius: 4px;
+    background: rgba(45,40,32,150);
+    color: #9a8c78;
+    border: 1px solid rgba(180,160,130,14);
+    border-radius: 7px;
     font-size: {FS_SM}px;
     font-weight: bold;
     padding: 0;
 }
 QPushButton#btnOverflow:hover {
-    background: rgba(180,160,130,8);
-    color: #b0a08c;
+    background: rgba(55,48,38,220);
+    color: #d4c5b0;
+    border-color: rgba(212,165,116,40);
 }
 
 /* --- Custom Provider config button --- */

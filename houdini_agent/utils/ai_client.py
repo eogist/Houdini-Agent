@@ -2550,6 +2550,32 @@ class AIClient:
     def is_glm47(model: str) -> bool:
         """判断是否为 GLM-4.7 模型"""
         return model.lower() == 'glm-4.7'
+
+    @staticmethod
+    def _normalize_reasoning_effort(reasoning_effort: Optional[str]) -> Optional[str]:
+        if not reasoning_effort:
+            return None
+        effort = str(reasoning_effort).strip().lower()
+        aliases = {
+            'off': 'none',
+            'normal': 'medium',
+            'med': 'medium',
+            'max': 'xhigh',
+            'extra_high': 'xhigh',
+            'very_high': 'xhigh',
+        }
+        effort = aliases.get(effort, effort)
+        return effort if effort in {'none', 'minimal', 'low', 'medium', 'high', 'xhigh'} else None
+
+    @staticmethod
+    def _supports_openai_reasoning_effort(provider: str, model: str) -> bool:
+        provider = (provider or '').lower()
+        model_name = (model or '').lower().split('/')[-1]
+        # Only Custom provider receives the user-selected GPT-5 reasoning_effort.
+        # Built-in OpenAI keeps the default API behavior.
+        return provider == 'custom' and (
+            model_name.startswith('gpt-5') or model_name.startswith('gpt5')
+        )
     
     # Duojie 思考模式说明：
     # 经测试 thinking/reasoningEffort API 参数对 Duojie 均无效（reasoning_tokens 始终 0）
@@ -3196,7 +3222,8 @@ class AIClient:
                     tools: Optional[List[dict]] = None,
                     tool_choice: str = 'auto',
                     enable_thinking: bool = True,
-                    response_format: Optional[dict] = None) -> Generator[Dict[str, Any], None, None]:
+                    response_format: Optional[dict] = None,
+                    reasoning_effort: Optional[str] = None) -> Generator[Dict[str, Any], None, None]:
         """流式 Chat API
 
         Yields:
@@ -3242,6 +3269,9 @@ class AIClient:
             payload['max_tokens'] = max_tokens
         if response_format:
             payload['response_format'] = response_format
+        _reasoning_effort = self._normalize_reasoning_effort(reasoning_effort)
+        if _reasoning_effort and self._supports_openai_reasoning_effort(provider, model):
+            payload['reasoning_effort'] = _reasoning_effort
 
         # GLM-4.7 专属参数（仅原生 GLM 接口）：深度思考 + 流式工具调用
         if self.is_glm47(model) and provider == 'glm' and enable_thinking:
@@ -3623,7 +3653,8 @@ class AIClient:
              timeout: int = 60,
              tools: Optional[List[dict]] = None,
              tool_choice: str = 'auto',
-             response_format: Optional[dict] = None) -> Dict[str, Any]:
+             response_format: Optional[dict] = None,
+             reasoning_effort: Optional[str] = None) -> Dict[str, Any]:
         """非流式 Chat（兼容旧接口）"""
 
         if not HAS_REQUESTS:
@@ -3643,6 +3674,9 @@ class AIClient:
             payload['max_tokens'] = max_tokens
         if response_format:
             payload['response_format'] = response_format
+        _reasoning_effort = self._normalize_reasoning_effort(reasoning_effort)
+        if _reasoning_effort and self._supports_openai_reasoning_effort(provider, model):
+            payload['reasoning_effort'] = _reasoning_effort
         
         # GLM-4.7 专属参数（仅原生 GLM 接口）
         if self.is_glm47(model) and provider == 'glm':
@@ -3727,6 +3761,7 @@ class AIClient:
                           temperature: float = 0.17,
                           max_tokens: Optional[int] = None,
                           enable_thinking: bool = True,
+                          reasoning_effort: Optional[str] = None,
                           supports_vision: bool = True,
                           tools_override: Optional[List[dict]] = None,
                           on_content: Optional[Callable[[str], None]] = None,
@@ -3741,6 +3776,7 @@ class AIClient:
         
         Args:
             enable_thinking: 是否启用思考模式（影响原生推理模型的 thinking 参数）
+            reasoning_effort: Custom GPT-5 reasoning_effort 参数
             supports_vision: 模型是否支持图片输入（False 时自动剥离 image_url 内容）
             on_content: 内容回调 (content) -> None
             on_thinking: 思考回调 (content) -> None
@@ -3882,7 +3918,8 @@ class AIClient:
                 max_tokens=max_tokens,
                 tools=effective_tools,
                 tool_choice='auto',
-                enable_thinking=enable_thinking
+                enable_thinking=enable_thinking,
+                reasoning_effort=reasoning_effort
             ):
                 # 检查停止请求
                 if self._stop_event.is_set():
@@ -4515,7 +4552,8 @@ class AIClient:
                 temperature=temperature,
                 max_tokens=max_tokens or 500,  # 限制总结长度
                 tools=None,  # 总结阶段不需要工具
-                tool_choice=None
+                tool_choice=None,
+                reasoning_effort=reasoning_effort
             ):
                 if chunk.get('type') == 'content':
                     content = chunk.get('content', '')
@@ -4754,6 +4792,7 @@ class AIClient:
                               temperature: float = 0.17,
                               max_tokens: Optional[int] = None,
                               enable_thinking: bool = True,
+                              reasoning_effort: Optional[str] = None,
                               supports_vision: bool = True,
                               tools_override: Optional[List[dict]] = None,
                               on_content: Optional[Callable[[str], None]] = None,
@@ -4872,7 +4911,8 @@ class AIClient:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 tools=None,  # JSON 模式不使用原生工具
-                tool_choice=None
+                tool_choice=None,
+                reasoning_effort=reasoning_effort
             ):
                 if self._stop_event.is_set():
                     return {
@@ -5275,7 +5315,8 @@ class AIClient:
                 temperature=temperature,
                 max_tokens=max_tokens or 500,  # 限制总结长度
                 tools=None,
-                tool_choice=None
+                tool_choice=None,
+                reasoning_effort=reasoning_effort
             ):
                 if chunk.get('type') == 'content':
                     content = chunk.get('content', '')

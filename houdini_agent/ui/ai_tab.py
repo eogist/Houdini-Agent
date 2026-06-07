@@ -1008,6 +1008,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
         self.provider_combo.currentIndexChanged.connect(self._save_model_preference)
         self.model_combo.currentIndexChanged.connect(self._save_model_preference)
         self.think_check.stateChanged.connect(self._save_model_preference)
+        self.reasoning_effort_combo.currentIndexChanged.connect(self._save_model_preference)
         self.input_edit.sendRequested.connect(self._on_send)
         
         # 多会话标签
@@ -1097,6 +1098,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
         settings.setValue("last_provider", provider)
         settings.setValue("last_model", model)
         settings.setValue("use_think", self.think_check.isChecked())
+        settings.setValue("reasoning_effort", self._current_reasoning_effort())
     
     def _load_model_preference(self, restore_provider: bool = False):
         """加载模型选择偏好
@@ -1115,7 +1117,16 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
             use_think = use_think.lower() == 'true'
         self.think_check.setChecked(bool(use_think))
         
+        reasoning_effort = settings.value("reasoning_effort", "high")
+        if hasattr(self, 'reasoning_effort_combo'):
+            idx = self.reasoning_effort_combo.findData(reasoning_effort)
+            if idx < 0:
+                idx = self.reasoning_effort_combo.findText(str(reasoning_effort))
+            if idx >= 0:
+                self.reasoning_effort_combo.setCurrentIndex(idx)
+        
         if not last_provider:
+            self._on_provider_changed_custom_visibility()
             return
         
         # 恢复提供商（仅在启动时调用一次）
@@ -1139,10 +1150,17 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
                 index = self.model_combo.findText(last_model)
                 if index >= 0:
                     self.model_combo.setCurrentIndex(index)
+
+        self._on_provider_changed_custom_visibility()
     
     def _get_current_context_limit(self) -> int:
         """获取当前模型的上下文限制"""
         model = self.model_combo.currentText()
+        if self._current_provider() == 'custom':
+            try:
+                return int(self._custom_provider_config.get('context_limit') or 128000)
+            except (TypeError, ValueError):
+                pass
         return self._model_context_limits.get(model, 64000)
     
     def _update_context_stats(self):
@@ -1276,6 +1294,12 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
     
     def _current_provider(self) -> str:
         return self.provider_combo.currentData() or 'deepseek'
+
+    def _current_reasoning_effort(self) -> str:
+        combo = getattr(self, 'reasoning_effort_combo', None)
+        if combo is None:
+            return 'high'
+        return combo.currentData() or combo.currentText().replace('R ', '').strip() or 'high'
 
     def _refresh_models(self, provider: str):
         self.model_combo.clear()
@@ -3566,6 +3590,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
             'use_web': self.web_check.isChecked(),
             'use_agent': self._agent_mode,  # True=Agent(full), False=Ask(read-only)
             'use_think': self.think_check.isChecked(),
+            'reasoning_effort': self._current_reasoning_effort(),
             'context_limit': self._get_current_context_limit(),  # 也在主线程获取
             'scene_context': self._collect_scene_context(),  # ★ 主线程收集 Houdini 场景上下文
             'supports_vision': self._current_model_supports_vision(),  # 模型是否支持图片
@@ -3589,6 +3614,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
                 - use_web: 是否启用网页搜索
                 - use_agent: 是否启用 Agent 模式
                 - use_think: 是否启用思考模式
+                - reasoning_effort: Custom GPT-5 推理强度
                 - context_limit: 上下文限制
         """
         # ⚠️ 从参数获取值，不直接访问 Qt 控件（线程安全）
@@ -3597,6 +3623,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
         use_web = agent_params['use_web']
         use_agent = agent_params['use_agent']
         use_think = agent_params.get('use_think', True)
+        reasoning_effort = agent_params.get('reasoning_effort', 'high')
         context_limit = agent_params['context_limit']
         scene_context = agent_params.get('scene_context', {})
         supports_vision = agent_params.get('supports_vision', True)
@@ -4123,6 +4150,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
                     max_iterations=_max_iter,
                     max_tokens=None,
                     enable_thinking=use_think,
+                    reasoning_effort=reasoning_effort,
                     supports_vision=supports_vision,
                     tools_override=tools,
                     context_limit=context_limit,
@@ -4153,6 +4181,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
                     max_iterations=999,  # 不限制迭代次数
                     max_tokens=None,  # 不限制输出长度
                     enable_thinking=use_think,
+                    reasoning_effort=reasoning_effort,
                     supports_vision=supports_vision,
                     tools_override=tools,
                     context_limit=context_limit,
@@ -4180,6 +4209,7 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
                     max_iterations=15,  # Ask 模式限制迭代（主要是查询）
                     max_tokens=None,
                     enable_thinking=use_think,
+                    reasoning_effort=reasoning_effort,
                     supports_vision=supports_vision,
                     tools_override=tools,  # ★ 只传入只读工具
                     context_limit=context_limit,
@@ -4205,6 +4235,8 @@ SideFX Labs Node Usage Rules (MUST follow strictly):
                     provider=provider, 
                     tools=None,
                     max_tokens=None,
+                    enable_thinking=use_think,
+                    reasoning_effort=reasoning_effort,
                 ):
                     if self.client.is_stop_requested():
                         self._agentStopped.emit()
